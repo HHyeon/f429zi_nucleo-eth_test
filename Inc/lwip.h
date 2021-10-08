@@ -40,6 +40,8 @@
 #endif /* WITH_RTOS */
 
 /* USER CODE BEGIN 0 */
+   
+void ethernetif_notify_conn_changed_notify(struct netif *netif);
 
 /* USER CODE END 0 */
 

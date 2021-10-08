@@ -49,6 +49,23 @@ ip4_addr_t netmask;
 ip4_addr_t gw;
 
 /* USER CODE BEGIN 2 */
+  
+uint8_t dhcp_check_idle = 1;
+struct dhcp *dhcp;
+uint8_t netif_link_dn = 0;
+
+void ethernetif_notify_conn_changed_notify(struct netif *netif)
+{
+  if (netif_is_link_up(netif))
+  {
+    
+  }
+  else
+  {
+    netif_link_dn = 1;
+  }
+}
+
 /* USER CODE END 2 */
 
 /**
@@ -91,6 +108,9 @@ void MX_LWIP_Init(void)
 
 /* USER CODE BEGIN 3 */
   
+  netif_set_down(&gnetif);
+  ethernetif_notify_conn_changed(&gnetif);
+  
 /* USER CODE END 3 */
 }
 
@@ -124,6 +144,52 @@ void MX_LWIP_Process(void)
   sys_check_timeouts();
 
 /* USER CODE BEGIN 4_3 */
+  
+  ethernetif_set_link(&gnetif);
+  
+  if (netif_is_link_up(&gnetif) && !netif_is_up(&gnetif))
+  {
+    printf("netif is up\n");
+    netif_set_up(&gnetif);
+    dhcp_start(&gnetif);
+    dhcp_check_idle = 0;
+  }
+  
+  if (HAL_GetTick() - DHCPfineTimer >= 500 && dhcp_check_idle == 0)
+  {
+    DHCPfineTimer =  HAL_GetTick();
+    
+    printf("dhcp check\n");
+    
+    if (dhcp_supplied_address(&gnetif)) 
+    {
+      printf("address assigned %s\n", ip4addr_ntoa((const ip4_addr_t *)&gnetif.ip_addr));
+      dhcp_check_idle = 1;
+    }
+    else
+    {
+      dhcp = (struct dhcp *)netif_get_client_data(&gnetif, LWIP_NETIF_CLIENT_DATA_INDEX_DHCP);
+      
+      if (dhcp->tries > 5)
+      {
+        printf("dhcp timeout\n");
+        dhcp_stop(&gnetif);
+        dhcp_check_idle = 1;
+      }
+    }
+  }
+  
+  
+  
+  if(netif_link_dn)
+  {
+    netif_link_dn = 0;
+    
+    printf("netif is down\n");
+    
+    netif_set_down(&gnetif);
+  }
+
     
 /* USER CODE END 4_3 */
 }

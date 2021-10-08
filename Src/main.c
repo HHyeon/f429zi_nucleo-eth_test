@@ -76,13 +76,9 @@ static void MX_USART3_UART_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-extern struct netif gnetif;
-
-
-uint8_t netif_link_dn = 0;
-
 void ethernetif_notify_conn_changed(struct netif *netif)
 {
+  ethernetif_notify_conn_changed_notify(netif);
   if (netif_is_link_up(netif))
   {
     HAL_GPIO_WritePin(LD1_GPIO_Port, LD1_Pin, GPIO_PIN_SET);
@@ -90,7 +86,6 @@ void ethernetif_notify_conn_changed(struct netif *netif)
   }
   else
   {
-    netif_link_dn = 1;
     HAL_GPIO_WritePin(LD1_GPIO_Port, LD1_Pin, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_SET);
   }
@@ -134,15 +129,6 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  
-  netif_set_down(&gnetif);
-  
-  ethernetif_notify_conn_changed(&gnetif);
-  
-  uint32_t DHCPfineTimer = 0;
-  uint8_t dhcp_check_idle = 1;
-  struct dhcp *dhcp;
-  
   while (1)
   {
     /* USER CODE END WHILE */
@@ -150,53 +136,6 @@ int main(void)
     /* USER CODE BEGIN 3 */
     
     MX_LWIP_Process();
-    
-    if(netif_link_dn)
-    {
-      netif_link_dn = 0;
-      
-      printf("netif is down\n");
-      
-      netif_set_down(&gnetif);
-    }
-    
-    
-    ethernetif_set_link(&gnetif);
-    
-    if (netif_is_link_up(&gnetif) && !netif_is_up(&gnetif))
-    {
-      printf("netif is up\n");
-      netif_set_up(&gnetif);
-      dhcp_start(&gnetif);
-      dhcp_check_idle = 0;
-    }
-    
-    if (HAL_GetTick() - DHCPfineTimer >= 500 && dhcp_check_idle == 0)
-    {
-      DHCPfineTimer =  HAL_GetTick();
-      
-      printf("dhcp check\n");
-      
-      if (dhcp_supplied_address(&gnetif)) 
-      {
-        printf("address assigned %s\n", ip4addr_ntoa((const ip4_addr_t *)&gnetif.ip_addr));
-        dhcp_check_idle = 1;
-      }
-      else
-      {
-        dhcp = (struct dhcp *)netif_get_client_data(&gnetif, LWIP_NETIF_CLIENT_DATA_INDEX_DHCP);
-        
-        if (dhcp->tries > 5)
-        {
-          printf("dhcp timeout\n");
-          dhcp_stop(&gnetif);
-          dhcp_check_idle = 1;
-        }
-      }
-    }
-    
-    
-    
   }
   /* USER CODE END 3 */
 }
